@@ -1,5 +1,6 @@
 import os
 import yt_dlp
+import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -11,7 +12,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def download_reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-    if "instagram.com" not in url: return
+    if "instagram.com" not in url:
+        return
     
     await update.message.reply_text("Download ho raha hai... ⏳")
     
@@ -19,15 +21,18 @@ async def download_reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'format': 'best',
         'outtmpl': 'video.mp4',
         'quiet': True,
-        'no_warnings': True
+        'no_warnings': True,
     }
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        # Download logic
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
         
+        # Video send karna
         await update.message.reply_video(video=open('video.mp4', 'rb'), caption="Lo bhai! ✅")
         
+        # File delete karna
         if os.path.exists("video.mp4"):
             os.remove("video.mp4")
     except Exception as e:
@@ -35,11 +40,13 @@ async def download_reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     if not TOKEN:
-        print("Token nahi mila!")
+        print("Token nahi mila! Check Render Env Vars.")
     else:
+        # Naya tareeka bot start karne ka (v20+)
         app = ApplicationBuilder().token(TOKEN).build()
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_reel))
-        print("Bot is running...")
+        
+        print("Bot chalu ho gaya...")
         app.run_polling()
         
