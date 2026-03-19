@@ -1,71 +1,45 @@
 import os
 import yt_dlp
-import requests
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Token ko Render ke Environment Variables se uthayenge (Safety ke liye)
+# Token Render ke Environment Variables se aayega
 TOKEN = os.environ.get("BOT_TOKEN")
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "🔥 **Instagram Reel Downloader** 🔥\n\n"
-        "Bhai, bas Reel ka link bhejo, main video nikaal kar deta hoon! 🚀"
-    )
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Bhai, Instagram Reel link bhejo! 🚀")
 
-def download_reel(update: Update, context: CallbackContext):
+async def download_reel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
+    if "instagram.com" not in url: return
     
-    # Check karna ki link Instagram ka hi hai
-    if "instagram.com" not in url:
-        update.message.reply_text("Bhai, sahi Instagram Reel link bhejo! ❌")
-        return
-
-    update.message.reply_text("Process ho raha hai, thoda ruko... ⏳")
+    await update.message.reply_text("Download ho raha hai... ⏳")
     
-    # yt-dlp settings for high quality download
     ydl_opts = {
         'format': 'best',
         'outtmpl': 'video.mp4',
         'quiet': True,
-        'no_warnings': True,
-        'cookiefile': 'cookies.txt' # Agar cookies ho toh (optional)
+        'no_warnings': True
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         
-        # Video Telegram par send karna
-        update.message.reply_video(
-            video=open('video.mp4', 'rb'),
-            caption="Lo bhai, aapki Reel! ✅\n@YourBotName"
-        )
+        await update.message.reply_video(video=open('video.mp4', 'rb'), caption="Lo bhai! ✅")
         
-        # File delete karna taaki Render ki memory full na ho
         if os.path.exists("video.mp4"):
             os.remove("video.mp4")
-            
     except Exception as e:
-        update.message.reply_text(f"Bhai error aa gaya: {str(e)[:100]}...")
-
-def main():
-    if not TOKEN:
-        print("Error: BOT_TOKEN nahi mila! Render settings check karo.")
-        return
-
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
-
-    # Handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, download_reel))
-    
-    # Bot start karna
-    print("Bot chalu ho gaya hai...")
-    updater.start_polling()
-    updater.idle()
+        await update.message.reply_text(f"Error: {str(e)[:100]}")
 
 if __name__ == '__main__':
-    main()
-  
+    if not TOKEN:
+        print("Token nahi mila!")
+    else:
+        app = ApplicationBuilder().token(TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_reel))
+        print("Bot is running...")
+        app.run_polling()
+        
